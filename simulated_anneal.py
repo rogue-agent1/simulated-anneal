@@ -1,17 +1,39 @@
-#!/usr/bin/env python3
-"""Simulated annealing optimizer."""
-import sys, random, math
-random.seed(42)
-def rastrigin(x): return sum(xi**2-10*math.cos(2*math.pi*xi)+10 for xi in x)
-dim=int(sys.argv[1]) if len(sys.argv)>1 else 5
-x=[random.uniform(-5,5) for _ in range(dim)]; best_x=x[:]; best_f=f=rastrigin(x)
-T=100; cool=0.995
-for i in range(10000):
-    nx=[xi+random.gauss(0,T*0.01) for xi in x]; nf=rastrigin(nx)
-    if nf<f or random.random()<math.exp(-(nf-f)/max(T,1e-10)):
-        x,f=nx,nf
-        if f<best_f: best_x,best_f=x[:],f
-    T*=cool
-    if i%1000==0: print(f"Step {i}: T={T:.2f}, f={f:.4f}, best={best_f:.4f}")
-print(f"\nOptimum: f={best_f:.6f}")
-print(f"Solution: [{', '.join(f'{x:.4f}' for x in best_x)}]")
+import argparse, random, math
+
+def sphere(x): return sum(v**2 for v in x)
+def rosenbrock(x): return sum(100*(x[i+1]-x[i]**2)**2 + (1-x[i])**2 for i in range(len(x)-1))
+def ackley(x):
+    n = len(x)
+    return -20*math.exp(-0.2*math.sqrt(sum(v**2 for v in x)/n)) - math.exp(sum(math.cos(2*math.pi*v) for v in x)/n) + 20 + math.e
+
+FUNCS = {"sphere": sphere, "rosenbrock": rosenbrock, "ackley": ackley}
+
+def sa(func, dim=5, t0=100, tf=0.01, cool=0.995, seed=None):
+    if seed: random.seed(seed)
+    x = [random.uniform(-5, 5) for _ in range(dim)]
+    fx = func(x)
+    best, fbest = x[:], fx
+    t = t0
+    step = 0
+    while t > tf:
+        nx = [xi + random.gauss(0, t*0.1) for xi in x]
+        nfx = func(nx)
+        if nfx < fx or random.random() < math.exp(-(nfx - fx) / t):
+            x, fx = nx, nfx
+        if fx < fbest: best, fbest = x[:], fx
+        t *= cool
+        step += 1
+        if step % 500 == 0: print(f"Step {step:5d} T={t:.4f} best={fbest:.6f}")
+    print(f"Final: best={fbest:.6f} steps={step}")
+    return best, fbest
+
+def main():
+    p = argparse.ArgumentParser(description="Simulated annealing")
+    p.add_argument("func", choices=FUNCS.keys())
+    p.add_argument("-d", "--dim", type=int, default=5)
+    p.add_argument("--seed", type=int)
+    args = p.parse_args()
+    sa(FUNCS[args.func], args.dim, seed=args.seed)
+
+if __name__ == "__main__":
+    main()
